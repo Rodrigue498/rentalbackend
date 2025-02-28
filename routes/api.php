@@ -17,6 +17,27 @@ use App\Http\Controllers\SeasonalPricingController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\SignatureController;
 use App\Http\Controllers\DocumentController;
+use Illuminate\Support\Facades\Http;
+
+Route::get('/places', function (Request $request) {
+    $input = $request->query('input');
+
+    if (!$input) {
+        return response()->json(['error' => 'Input is required'], 400);
+    }
+
+    $apiKey = env('GOOGLE_API_KEY');
+    $url = "https://maps.googleapis.com/maps/api/place/autocomplete/json?input={$input}&key={$apiKey}&types=(cities)|establishment";
+
+    $response = Http::get($url);
+
+    if ($response->failed()) {
+        return response()->json(['error' => 'Failed to fetch places'], 500);
+    }
+
+    return response()->json(['message' => 'API is working'], 200);
+});
+
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/documents/archive', [DocumentController::class, 'archiveDocument']);
@@ -53,6 +74,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'profile']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });
+
 
 
 Route::middleware(['auth:sanctum', 'role:renter'])->group(function () {

@@ -25,11 +25,6 @@ class AvailabilitySeeder extends Seeder
             'date' => Carbon::parse('2024-12-02'),
         ]);
 
-        Availability::create([
-            'trailer_id' => 4,
-            'available'=>false,
-            'date' => Carbon::parse('2024-12-03'),
-        ]);
 
         // Add more availability dates as needed
     }
