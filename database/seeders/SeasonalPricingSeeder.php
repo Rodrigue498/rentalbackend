@@ -1,39 +1,46 @@
 <?php
 
-// database/seeders/SeasonalPricingSeeder.php
-
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\SeasonalPricing;
+use App\Models\Trailer;
 use Carbon\Carbon;
 
 class SeasonalPricingSeeder extends Seeder
 {
     public function run()
     {
-        // Example of adding seasonal pricing for a trailer
-        SeasonalPricing::create([
-            'trailer_id' => 2,
-            'start_date' => Carbon::parse('2024-12-01'),
-            'end_date' => Carbon::parse('2024-12-10'),
-            'price' => 100, // Seasonal price during high demand period
-        ]);
+        // Fetch existing trailers
+        $trailers = Trailer::pluck('id')->toArray(); // Get all trailer IDs
 
-        SeasonalPricing::create([
-            'trailer_id' => 4,
-            'start_date' => Carbon::parse('2024-12-20'),
-            'end_date' => Carbon::parse('2024-12-25'),
-            'price' => 150, // Higher price for the holiday season
-        ]);
+        if (empty($trailers)) {
+            // If no trailers exist, create a default one
+            $trailer = Trailer::create([
+                'user_id' => 1, // Ensure user exists
+                'title' => 'Default Trailer',
+                'description' => 'A sample trailer.',
+                'type' => 'Utility',
+                'features' => 'Basic features',
+                'size' => 10,
+                'capacity' => 1000,
+                'available' => true,
+                'approval_status' => 'approved',
+                'price' => 50,
+                'images' => json_encode(['uploads/trailers/default.jpg']),
+            ]);
 
-        SeasonalPricing::create([
-            'trailer_id' => 3,
-            'start_date' => Carbon::parse('2024-12-26'),
-            'end_date' => Carbon::parse('2024-12-31'),
-            'price' => 120, // Another seasonal pricing for the end of the year
-        ]);
+            $trailers[] = $trailer->id; // Add the new trailer ID
+        }
 
-        // Add more seasonal pricing as needed
+        // Insert seasonal pricing only for existing trailers
+        foreach ($trailers as $trailer_id) {
+            SeasonalPricing::create([
+                'trailer_id' => $trailer_id,
+                'start_date' => Carbon::parse('2024-12-01')->addDays(rand(0, 30)),
+                'end_date' => Carbon::parse('2024-12-10')->addDays(rand(0, 30)),
+                'price' => rand(100, 200), // Randomized seasonal price
+            ]);
+        }
     }
 }

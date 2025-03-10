@@ -48,10 +48,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 Route::post('/payments/process', [PaymentController::class, 'processPayment'])->middleware('auth:sanctum');
 Route::get('/payments',[PaymentController::class,'processPayment'])->middleware('auth:sanctum');
-
-Route::middleware('auth:sanctum')->group(function () {
-    Route::put('/profile', [UserController::class, 'updateProfile']);
-});
+    Route::put('/users/update-profile/{id}', [UserController::class, 'updateProfile']);
 
 Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
     $request->fulfill();
@@ -66,8 +63,15 @@ Route::post('/email/resend', function (Request $request) {
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/register-google', [AuthController::class, 'registerGoogle']);
+    Route::put('/users/{id}', [UserController::class, 'update']);
+
+
 Route::post('/password/forgot', [PasswordController::class, 'sendResetLink']);
-Route::post('/password/reset', [PasswordController::class, 'resetPassword']);
+Route::post('/password/reset', [PasswordController::class, 'resetPassword'])
+    ->middleware('auth:sanctum'); // If using Sanctum
+
+
 Route::post('/social-login/{provider}', [AuthController::class, 'socialLogin']);
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -98,9 +102,10 @@ Route::middleware(['auth:sanctum', 'role:owner'])->group(function () {
     Route::get('/trailers/{id}/pricing', [SeasonalPricingController::class, 'getPricing']);
     Route::post('/trailers/{id}/pricing', [SeasonalPricingController::class, 'setPricing']);
 });
+Route::get('/trailers', [TrailerController::class, 'list']); // Public route
+
 
 Route::middleware(['auth:sanctum', 'role:administrator'])->group(function () {
-    Route::get('/trailers', [TrailerController::class, 'list']);
     Route::get('/admin/analytics', [AdminController::class, 'analytics']);
     Route::post('/admin/resolve-dispute', [AdminController::class, 'resolveDispute']);
     Route::patch('/trailers/{id}/approve', [TrailerController::class, 'approveListing']);
