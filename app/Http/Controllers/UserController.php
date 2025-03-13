@@ -44,32 +44,51 @@ class UserController extends Controller
 
 
     // Update a user
-    public function updateProfile(Request $request)
+    public function updateProfile(Request $request, $id)
     {
-        // Validate input
-        $validatedData = $request->validate([
-            'name' => 'required|string|max:255',
-            'address' => 'nullable|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email,' . Auth::id(),
-            'phone' => 'nullable|string|max:15',
-        ]);
-
-        // Get the currently authenticated user
-        $user = Auth::user();
-
-        if (!$user) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+        try {
+            // Find user by ID
+            $user = User::find($id);
+    
+            if (!$user) {
+                return response()->json(['message' => 'User not found'], 404);
+            }
+    
+            // Validate request data
+            $validatedData = $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|email|max:255|unique:users,email,' . $id,
+                'phone' => 'nullable|string|max:15',
+                'businessName' => 'nullable|string',
+                'firstName' => 'nullable|string',
+                'lastName' => 'nullable|string',
+                'birthday' => 'nullable|date',
+                'about' => 'nullable|string',
+                'address1' => 'nullable|string',
+                'address2' => 'nullable|string',
+                'city' => 'nullable|string',
+                'state' => 'nullable|string',
+                'country' => 'nullable|string',
+                'zip' => 'nullable|string',
+                'avatar' => 'nullable|string'
+            ]);
+    
+            // Update user details
+            $user->update($validatedData);
+    
+            return response()->json([
+                'message' => 'Profile updated successfully!',
+                'user' => $user,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error updating profile',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // Update user details
-        $user->update($validatedData);
-
-        return response()->json([
-            'message' => 'Profile updated successfully!',
-            'user' => $user,
-        ]);
     }
-
+    
+    
 
     // Delete a user
     public function destroy($id)

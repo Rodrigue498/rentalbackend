@@ -16,81 +16,87 @@ class TrailerController extends Controller
 
     // Create a new trailer
     public function create(Request $request)
-    {
-        if (auth()->user()->role !== 'owner' && auth()->user()->role !== 'administrator') {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-        $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'title' => 'required|string',
-            'description' => 'required|string',
-            'type' => 'required|string',
-            'features' => 'required|string',
-            'size' => 'required|integer',
-            'capacity' => 'required|integer',
-            'available' => 'required|boolean',
-            'price' => 'required|numeric',
-            'images' => 'required|array', // Expecting an array of images
-        ]);
-
-        // Convert the array of images to JSON before saving
-        $validated['images'] = json_encode($validated['images']);
-        $validated['approval_status'] = 'pending'; // Default status
-        $validated['admin_feedback'] = null;
-
-
-        Trailer::create($validated);
-
-        return response()->json(['message' => 'Trailer created successfully']);
+{
+    if (auth()->user()->role !== 'owner' && auth()->user()->role !== 'administrator') {
+        return response()->json(['message' => 'Unauthorized'], 403);
     }
+
+    $validated = $request->validate([
+        'user_id' => 'required|exists:users,id',
+        'title' => 'required|string',
+        'description' => 'required|string',
+        'type' => 'required|string',
+        'features' => 'required|string',
+        'size' => 'required|integer',
+        'capacity' => 'required|integer',
+        'available' => 'required|boolean',
+        'price' => 'required|numeric',
+        'images' => 'required|array',
+        'images.*' => 'image|mimes:jpg,jpeg,png|max:2048', // Validate each image
+    ]);
+
+    // Store images
+    $imagePaths = [];
+    foreach ($request->file('images') as $image) {
+        $path = $image->store('car_images', 'public');
+        $imagePaths[] = $path;
+    }
+
+    // Convert the array of images to JSON before saving
+    $validated['images'] = json_encode($imagePaths);
+    $validated['approval_status'] = 'pending';
+
+    Car::create($validated);
+
+    return response()->json(['message' => 'Car added successfully']);
+}
+
 
     // List all trailers
     public function list(Request $request)
-{
-    $query = Trailer::query();
-    // Show only approved trailers for non-admin users
-    if (auth()->user()->role !== 'administrator') {
-        $trailers = Trailer::where('approval_status', 'approved')->get();
-    } else {
-        // Admins can see all listings
-        $trailers = Trailer::all();
+    {
+        $query = Trailer::query();
+    
+        // Show only approved trailers for non-admin users
+       
+    
+        // Apply filters if provided in the request
+        if ($request->has('price_min')) {
+            $query->where('price', '>=', $request->input('price_min'));
+        }
+    
+        if ($request->has('price_max')) {
+            $query->where('price', '<=', $request->input('price_max'));
+        }
+    
+        if ($request->has('type')) {
+            $query->where('type', $request->input('type'));
+        }
+    
+        if ($request->has('features')) {
+            $query->where('features', 'like', '%' . $request->input('features') . '%');
+        }
+    
+        if ($request->has('size_min')) {
+            $query->where('size', '>=', $request->input('size_min'));
+        }
+    
+        if ($request->has('size_max')) {
+            $query->where('size', '<=', $request->input('size_max'));
+        }
+    
+        if ($request->has('owner_rating')) {
+            $query->whereHas('owner', function ($q) use ($request) {
+                $q->where('rating', '>=', $request->input('owner_rating'));
+            });
+        }
+    
+        // Paginate results
+        $trailers = $query->paginate(10);
+    
+        return response()->json($trailers);
     }
-    if ($request->has('price_min')) {
-        $query->where('price', '>=', $request->input('price_min'));
-    }
-
-    if ($request->has('price_max')) {
-        $query->where('price', '<=', $request->input('price_max'));
-    }
-
-    if ($request->has('type')) {
-        $query->where('type', $request->input('type'));
-    }
-
-    if ($request->has('features')) {
-        $query->where('features', 'like', '%' . $request->input('features') . '%');
-    }
-
-    if ($request->has('size_min')) {
-        $query->where('size', '>=', $request->input('size_min'));
-    }
-
-    if ($request->has('size_max')) {
-        $query->where('size', '<=', $request->input('size_max'));
-    }
-
-    if ($request->has('owner_rating')) {
-        $query->whereHas('owner', function ($q) use ($request) {
-            $q->where('rating', '>=', $request->input('owner_rating'));
-        });
-    }
-
-    // Paginate results (optional)
-    $trailers = $query->paginate(10);
-
-
-    return response()->json($trailers);
-}
+    
 
 
     // View a specific trailer by ID
