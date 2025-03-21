@@ -96,13 +96,15 @@ Route::get('/trailers/{id}/availability', [AvailabilityController::class, 'getAv
 
 Route::middleware(['auth:sanctum', 'role:owner'])->group(function () {
     Route::get('/trailers', [TrailerController::class, 'list']);
-    Route::post('/trailers/create', [TrailerController::class, 'create']);
+    
     Route::put('/trailers/{id}', [TrailerController::class, 'update']);
     Route::delete('/trailers/{id}', [TrailerController::class, 'destroy']);
     Route::get('/trailers/{id}/pricing', [SeasonalPricingController::class, 'getPricing']);
     Route::post('/trailers/{id}/pricing', [SeasonalPricingController::class, 'setPricing']);
 });
 Route::get('/trailers', [TrailerController::class, 'list']); // Public route
+Route::get('/trailers/{id}', [TrailerController::class, 'show']);
+Route::post('/trailers/create', [TrailerController::class, 'store']);
 
 
 Route::middleware(['auth:sanctum', 'role:administrator'])->group(function () {
