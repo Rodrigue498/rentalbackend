@@ -21,34 +21,48 @@ class TrailerController extends Controller
         return response()->json(['message' => 'Unauthorized'], 403);
     }
 
+    // Validate the incoming request data
     $validated = $request->validate([
         'user_id' => 'required|exists:users,id',
         'title' => 'required|string',
         'description' => 'required|string',
         'type' => 'required|string',
-        'features' => 'required|string',
-        'size' => 'required|integer',
-        'capacity' => 'required|integer',
+        'features' => 'nullable|array', // Store as JSON instead of string
+        'features.*' => 'string', // Each feature should be a string
+        'size' => 'required|numeric', // Updated to decimal instead of integer
+        'max_load' => 'required|integer', // Updated column name
         'available' => 'required|boolean',
         'price' => 'required|numeric',
+        'location' => 'nullable|string', // If we added a location column
         'images' => 'required|array',
         'images.*' => 'image|mimes:jpg,jpeg,png|max:2048', // Validate each image
     ]);
 
-    // Store images
+    // Handle image upload
     $imagePaths = [];
-    foreach ($request->file('images') as $image) {
-        $path = $image->store('car_images', 'public');
-        $imagePaths[] = $path;
+    if ($request->hasFile('images')) {
+        foreach ($request->file('images') as $image) {
+            $path = $image->store('trailers', 'public'); // Store in the 'public/trailers' folder
+            $imagePaths[] = $path;
+        }
     }
 
-    // Convert the array of images to JSON before saving
-    $validated['images'] = json_encode($imagePaths);
-    $validated['approval_status'] = 'pending';
+    // Create a new Trailer
+    $trailer = \App\Models\Trailer::create([
+        'user_id' => $validated['user_id'],
+        'title' => $validated['title'],
+        'description' => $validated['description'],
+        'type' => $validated['type'],
+        'features' => json_encode($validated['features'] ?? []), // Store features as JSON
+        'size' => $validated['size'], 
+        'max_load' => $validated['max_load'], // Use new column name
+        'available' => $validated['available'],
+        'price' => $validated['price'],
+        'location' => $validated['location'] ?? null, // If location exists
+        'images' => json_encode($imagePaths), // Store image paths as JSON
+    ]);
 
-    Car::create($validated);
-
-    return response()->json(['message' => 'Car added successfully']);
+    return response()->json(['message' => 'Trailer created successfully', 'trailer' => $trailer], 201);
 }
 
 
@@ -102,9 +116,105 @@ class TrailerController extends Controller
     // View a specific trailer by ID
     public function show($id)
     {
-        $trailer = Trailer::findOrFail($id); // Will throw a 404 if not found
-        return response()->json($trailer);
+        $trailer = Trailer::with(['owner', 'reviews'])->find($id);
+    
+        if (!$trailer) {
+            return response()->json(['message' => 'Trailer not found'], 404);
+        }
+    
+        return response()->json([
+            'id' => $trailer->id,
+            'title' => $trailer->title,
+            'description' => $trailer->description,
+            'type' => $trailer->type,
+            'features' => json_decode($trailer->features, true), // Convert JSON to array
+            'size' => $trailer->size,
+            'trailer_weight' => $trailer->trailer_weight, // Add trailer weight
+            'max_payload' => $trailer->max_payload, // Add max payload
+            'connector_type' => $trailer->connector_type, // Add connector type
+            'trailer_brakes' => $trailer->trailer_brakes, // Add trailer brakes info
+            'hitch_ball_size' => $trailer->hitch_ball_size, // Add hitch ball size
+            'available' => $trailer->available,
+            'price_per_day' => [
+                'single_day' => $trailer->price, // Base price for a single day
+                'multi_day_discount' => [
+                    '2_days' => $trailer->price * 0.95,  // 5% discount for 2 days
+                    '7_days' => $trailer->price * 0.90,  // 10% discount for 7 days
+                    '30_days' => $trailer->price * 0.80, // 20% discount for 30 days
+                ],
+            ],
+            'location' => $trailer->location,
+            'approval_status' => $trailer->approval_status,
+            'images' => json_decode($trailer->images, true), // Convert JSON to array
+            'owner' => [
+                'id' => $trailer->owner->id,
+                'name' => $trailer->owner->name,
+                'joined_at' => $trailer->owner->created_at->toDateString(), // Host join date
+                'trailer_count' => $trailer->owner->trailers->count(), // Count of trailers by host
+                'rating' => $trailer->owner->rating ?? null,
+            ],
+            'reviews' => $trailer->reviews->map(function ($review) {
+                return [
+                    'id' => $review->id,
+                    'reviewer' => $review->user->name,
+                    'rating' => $review->rating,
+                    'comment' => $review->comment,
+                    'created_at' => $review->created_at->toDateString(),
+                ];
+            }),
+            'average_rating' => $trailer->reviews->avg('rating') ?? null, // Average rating of trailer
+        ]);
     }
+    public function store(Request $request)
+{
+    // Validate incoming request
+    $request->validate([
+        'title' => 'required|string|max:255',
+        'description' => 'required|string',
+        'type' => 'required|string',
+        'features' => 'nullable|array',
+        'size' => 'required|string',
+        'trailer_weight' => 'required|numeric',
+        'max_payload' => 'required|numeric',
+        'connector_type' => 'required|string',
+        'trailer_brakes' => 'required|string',
+        'hitch_ball_size' => 'required|string',
+        'available' => 'required|boolean',
+        'price' => 'required|numeric',
+        'location' => 'required|string',
+        'images' => 'nullable|array',
+        'images.*' => 'url', // Validate each image URL
+    ]);
+
+    // Get the authenticated user
+    $user = auth()->user();
+
+    // Create new trailer
+    $trailer = Trailer::create([
+        'user_id' => $user->id,  // Associate with the logged-in user
+        'title' => $request->title,
+        'description' => $request->description,
+        'type' => $request->type,
+        'features' => json_encode($request->features),
+        'size' => $request->size,
+        'trailer_weight' => $request->trailer_weight,
+        'max_payload' => $request->max_payload,
+        'connector_type' => $request->connector_type,
+        'trailer_brakes' => $request->trailer_brakes,
+        'hitch_ball_size' => $request->hitch_ball_size,
+        'available' => $request->available,
+        'price' => $request->price,
+        'location' => $request->location,
+        'images' => json_encode($request->images),
+        'approval_status' => 'pending', // Set default approval status
+    ]);
+
+    return response()->json([
+        'message' => 'Trailer added successfully',
+        'trailer' => $trailer
+    ], 201);
+}
+
 
     // Update a trailer
    // Update method
