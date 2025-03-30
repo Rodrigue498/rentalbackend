@@ -111,8 +111,7 @@ class TrailerController extends Controller
         return response()->json($trailers);
     }
     
-
-
+    
     // View a specific trailer by ID
     public function show($id)
     {
@@ -129,31 +128,35 @@ class TrailerController extends Controller
             'type' => $trailer->type,
             'features' => json_decode($trailer->features, true), // Convert JSON to array
             'size' => $trailer->size,
-            'trailer_weight' => $trailer->trailer_weight, // Add trailer weight
-            'max_payload' => $trailer->max_payload, // Add max payload
-            'connector_type' => $trailer->connector_type, // Add connector type
-            'trailer_brakes' => $trailer->trailer_brakes, // Add trailer brakes info
-            'hitch_ball_size' => $trailer->hitch_ball_size, // Add hitch ball size
+            'trailer_weight' => $trailer->trailer_weight,
+            'max_payload' => $trailer->max_payload,
+            'connector_type' => $trailer->connector_type,
+            'trailer_brakes' => $trailer->trailer_brakes,
+            'hitch_ball_size' => $trailer->hitch_ball_size,
             'available' => $trailer->available,
             'price_per_day' => [
-                'single_day' => $trailer->price, // Base price for a single day
+                'single_day' => $trailer->price,
                 'multi_day_discount' => [
-                    '2_days' => $trailer->price * 0.95,  // 5% discount for 2 days
-                    '7_days' => $trailer->price * 0.90,  // 10% discount for 7 days
-                    '30_days' => $trailer->price * 0.80, // 20% discount for 30 days
+                    '2_days' => $trailer->price * 0.95,
+                    '7_days' => $trailer->price * 0.90,
+                    '30_days' => $trailer->price * 0.80,
                 ],
             ],
             'location' => $trailer->location,
             'approval_status' => $trailer->approval_status,
-            'images' => json_decode($trailer->images, true), // Convert JSON to array
-            'owner' => [
+            'images' => json_decode($trailer->images, true),
+    
+            // Check if owner exists before accessing properties
+            'owner' => $trailer->owner ? [
                 'id' => $trailer->owner->id,
                 'name' => $trailer->owner->name,
-                'joined_at' => $trailer->owner->created_at->toDateString(), // Host join date
-                'trailer_count' => $trailer->owner->trailers->count(), // Count of trailers by host
+                'joined_at' => $trailer->owner->created_at->toDateString(),
+                'trailer_count' => $trailer->owner->trailers()->count(),
                 'rating' => $trailer->owner->rating ?? null,
-            ],
-            'reviews' => $trailer->reviews->map(function ($review) {
+            ] : null,
+    
+            // Check if reviews exist before looping
+            'reviews' => $trailer->reviews->isNotEmpty() ? $trailer->reviews->map(function ($review) {
                 return [
                     'id' => $review->id,
                     'reviewer' => $review->user->name,
@@ -161,11 +164,14 @@ class TrailerController extends Controller
                     'comment' => $review->comment,
                     'created_at' => $review->created_at->toDateString(),
                 ];
-            }),
-            'average_rating' => $trailer->reviews->avg('rating') ?? null, // Average rating of trailer
+            }) : [],
+    
+            'average_rating' => $trailer->reviews->isNotEmpty() ? $trailer->reviews->avg('rating') : null,
         ]);
     }
-    public function store(Request $request)
+    
+
+    public function start(Request $request)
 {
     // Validate incoming request
     $request->validate([

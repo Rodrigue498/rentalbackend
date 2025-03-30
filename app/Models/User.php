@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
 {
@@ -22,7 +23,10 @@ class User extends Authenticatable
         'name', 'email', 'password', 'address', 'phone','role','businessName', 'firstName', 'lastName', 'birthday', 'about',
             'address1', 'address2', 'city', 'state', 'country', 'zip', 'avatar'
         ];
-        
+        public function trailers(): HasMany
+        {
+            return $this->hasMany(Trailer::class, 'user_id'); // Ensure 'user_id' is the foreign key
+        }  
     
 
     /**
@@ -44,5 +48,9 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+  
+
+
+
 
 }

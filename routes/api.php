@@ -95,7 +95,7 @@ Route::get('/trailers/{id}/availability', [AvailabilityController::class, 'getAv
 });
 
 Route::middleware(['auth:sanctum', 'role:owner'])->group(function () {
-    Route::get('/trailers', [TrailerController::class, 'list']);
+    // Route::get('/trailers', [TrailerController::class, 'list']);
     
     Route::put('/trailers/{id}', [TrailerController::class, 'update']);
     Route::delete('/trailers/{id}', [TrailerController::class, 'destroy']);
@@ -104,7 +104,7 @@ Route::middleware(['auth:sanctum', 'role:owner'])->group(function () {
 });
 Route::get('/trailers', [TrailerController::class, 'list']); // Public route
 Route::get('/trailers/{id}', [TrailerController::class, 'show']);
-Route::post('/trailers/create', [TrailerController::class, 'store']);
+Route::post('/trailers/create', [TrailerController::class, 'start']);
 
 
 Route::middleware(['auth:sanctum', 'role:administrator'])->group(function () {
