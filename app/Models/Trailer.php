@@ -4,20 +4,27 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Review;
+
+
 
 class Trailer extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'title', 'description', 'type', 'features', 'size', 'capacity', 'available', 'price', 'images',
-        'approval_status',
-        'admin_feedback',
+        'user_id', 'title', 'description', 'type', 'features', 'size',
+        'trailer_weight', 'max_payload', 'connector_type', 'trailer_brakes',
+        'hitch_ball_size', 'available', 'price', 'location', 'images', 'approval_status'
     ];
     public function owner()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+    public function reviews()
+{
+    return $this->hasMany(Review::class, 'trailer_id');
+}
 
     public function user()
     {
