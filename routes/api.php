@@ -104,7 +104,7 @@ Route::middleware(['auth:sanctum', 'role:owner'])->group(function () {
 });
 Route::get('/trailers', [TrailerController::class, 'list']); // Public route
 Route::get('/trailers/{id}', [TrailerController::class, 'show']);
-Route::post('/trailers/create', [TrailerController::class, 'start']);
+Route::post('/trailers/create', [TrailerController::class, 'create']);
 
 
 Route::middleware(['auth:sanctum', 'role:administrator'])->group(function () {

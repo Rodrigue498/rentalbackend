@@ -10,18 +10,21 @@ class TrailerController extends Controller
 {
     public function __construct()
     {
-        // Ensure the user is authenticated for CRUD operations
-        $this->middleware('auth:sanctum');
+        // Only protect methods that need authentication
+        $this->middleware('auth:sanctum')->only([
+         'update', 'destroy', 'approveListing', 'setPricing'
+        ]);
     }
+    
 
     // Create a new trailer
     public function create(Request $request)
 {
-    if (auth()->user()->role !== 'owner' && auth()->user()->role !== 'administrator') {
+    if (!in_array(auth()->user()->role, ['owner','renter', 'administrator'])) {
         return response()->json(['message' => 'Unauthorized'], 403);
     }
 
-    // Validate the incoming request data
+    // Validate multipart/form-data request
     $validated = $request->validate([
         'user_id' => 'required|exists:users,id',
         'title' => 'required|string',
@@ -30,19 +33,18 @@ class TrailerController extends Controller
         'features' => 'nullable|array', // Store as JSON instead of string
         'features.*' => 'string', // Each feature should be a string
         'size' => 'required|numeric', // Updated to decimal instead of integer
-        'max_load' => 'required|integer', // Updated column name
-        'available' => 'required|boolean',
+        'max_load' => 'required|integer',
         'price' => 'required|numeric',
         'location' => 'nullable|string', // If we added a location column
         'images' => 'required|array',
-        'images.*' => 'image|mimes:jpg,jpeg,png|max:2048', // Validate each image
+        // 'images.*' => 'image|mimes:jpg,jpeg,png|max:2048',
     ]);
 
-    // Handle image upload
     $imagePaths = [];
+
     if ($request->hasFile('images')) {
         foreach ($request->file('images') as $image) {
-            $path = $image->store('trailers', 'public'); // Store in the 'public/trailers' folder
+            $path = $image->store('trailers', 'public'); // Save to storage/app/public/trailers
             $imagePaths[] = $path;
         }
     }
@@ -54,9 +56,8 @@ class TrailerController extends Controller
         'description' => $validated['description'],
         'type' => $validated['type'],
         'features' => json_encode($validated['features'] ?? []), // Store features as JSON
-        'size' => $validated['size'], 
+        'size' => $validated['size'],
         'max_load' => $validated['max_load'], // Use new column name
-        'available' => $validated['available'],
         'price' => $validated['price'],
         'location' => $validated['location'] ?? null, // If location exists
         'images' => json_encode($imagePaths), // Store image paths as JSON
@@ -64,7 +65,7 @@ class TrailerController extends Controller
 
     return response()->json(['message' => 'Trailer created successfully', 'trailer' => $trailer], 201);
 }
-
+    
 
     // List all trailers
     public function list(Request $request)
@@ -129,11 +130,10 @@ class TrailerController extends Controller
             'features' => json_decode($trailer->features, true), // Convert JSON to array
             'size' => $trailer->size,
             'trailer_weight' => $trailer->trailer_weight,
-            'max_payload' => $trailer->max_payload,
+            'max_load' => $trailer->max_load,
             'connector_type' => $trailer->connector_type,
             'trailer_brakes' => $trailer->trailer_brakes,
             'hitch_ball_size' => $trailer->hitch_ball_size,
-            'available' => $trailer->available,
             'price_per_day' => [
                 'single_day' => $trailer->price,
                 'multi_day_discount' => [
@@ -181,11 +181,10 @@ class TrailerController extends Controller
         'features' => 'nullable|array',
         'size' => 'required|string',
         'trailer_weight' => 'required|numeric',
-        'max_payload' => 'required|numeric',
+        'max_load' => 'required|numeric',
         'connector_type' => 'required|string',
         'trailer_brakes' => 'required|string',
         'hitch_ball_size' => 'required|string',
-        'available' => 'required|boolean',
         'price' => 'required|numeric',
         'location' => 'required|string',
         'images' => 'nullable|array',
@@ -204,11 +203,10 @@ class TrailerController extends Controller
         'features' => json_encode($request->features),
         'size' => $request->size,
         'trailer_weight' => $request->trailer_weight,
-        'max_payload' => $request->max_payload,
+        'max_load' => $request->max_load,
         'connector_type' => $request->connector_type,
         'trailer_brakes' => $request->trailer_brakes,
         'hitch_ball_size' => $request->hitch_ball_size,
-        'available' => $request->available,
         'price' => $request->price,
         'location' => $request->location,
         'images' => json_encode($request->images),
@@ -240,8 +238,7 @@ public function update(Request $request, $id)
     $validated = $request->validate([
         'title' => 'required|string',
         'description' => 'required|string',
-        'price' => 'required|numeric',
-        'available' => 'required|boolean',
+        'price' => 'required|numeric'
     ]);
 
     $trailer->update($validated);
