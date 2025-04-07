@@ -15,7 +15,7 @@ class Trailer extends Model
     protected $fillable = [
         'user_id', 'title', 'description', 'type', 'features', 'size',
         'trailer_weight', 'max_payload', 'connector_type', 'trailer_brakes',
-        'hitch_ball_size', 'available', 'price', 'location', 'images', 'approval_status'
+        'hitch_ball_size', 'price', 'location', 'images', 'approval_status'
     ];
     public function owner()
     {
