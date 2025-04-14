@@ -12,59 +12,59 @@ class TrailerController extends Controller
     {
         // Only protect methods that need authentication
         $this->middleware('auth:sanctum')->only([
-         'update', 'destroy', 'approveListing', 'setPricing'
+            'create', 'update', 'destroy', 'approveListing', 'setPricing'
         ]);
+        
     }
     
 
     // Create a new trailer
     public function create(Request $request)
-{
-    if (!in_array(auth()->user()->role, ['owner','renter', 'administrator'])) {
-        return response()->json(['message' => 'Unauthorized'], 403);
-    }
-
-    // Validate multipart/form-data request
-    $validated = $request->validate([
-        'user_id' => 'required|exists:users,id',
-        'title' => 'required|string',
-        'description' => 'required|string',
-        'type' => 'required|string',
-        'features' => 'nullable|array', // Store as JSON instead of string
-        'features.*' => 'string', // Each feature should be a string
-        'size' => 'required|numeric', // Updated to decimal instead of integer
-        'max_load' => 'required|integer',
-        'price' => 'required|numeric',
-        'location' => 'nullable|string', // If we added a location column
-        'images' => 'required|array',
-        // 'images.*' => 'image|mimes:jpg,jpeg,png|max:2048',
-    ]);
-
-    $imagePaths = [];
-
-    if ($request->hasFile('images')) {
-        foreach ($request->file('images') as $image) {
-            $path = $image->store('trailers', 'public'); // Save to storage/app/public/trailers
-            $imagePaths[] = $path;
+    {
+        if (!auth()->check()) {
+            return response()->json(['message' => 'Unauthorized'], 401);
         }
+        
+        $imagePaths = [];
+    
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('trailers', 'public');
+                $imagePaths[] = $path;
+            }
+        }
+    
+        // ✅ Only validation rules here, no data assignment
+        $validated = $request->validate([
+            'title' => 'required|string',
+            'description' => 'required|string',
+            'type' => 'required|string',
+            'features' => 'nullable|array',
+            'features.*' => 'string',
+            'size' => 'required|numeric',
+            'max_payload' => 'required|integer',
+            'price' => 'required|numeric',
+            'location' => 'nullable|string',
+            
+            // Do NOT include 'images' => json_encode(...) here
+        ]);
+    
+        $trailer = Trailer::create([
+            'user_id' => auth()->id(),
+            'title' => $validated['title'],
+            'description' => $validated['description'],
+            'type' => $validated['type'],
+            'features' => json_encode($validated['features'] ?? []),
+            'size' => $validated['size'],
+            'max_payload' => $validated['max_payload'],
+            'price' => $validated['price'],
+            'location' => $validated['location'] ?? null,
+            'images' => json_encode($imagePaths),
+        ]);
+    
+        return response()->json(['message' => 'Trailer created successfully', 'trailer' => $trailer], 201);
     }
-
-    // Create a new Trailer
-    $trailer = \App\Models\Trailer::create([
-        'user_id' => $validated['user_id'],
-        'title' => $validated['title'],
-        'description' => $validated['description'],
-        'type' => $validated['type'],
-        'features' => json_encode($validated['features'] ?? []), // Store features as JSON
-        'size' => $validated['size'],
-        'max_load' => $validated['max_load'], // Use new column name
-        'price' => $validated['price'],
-        'location' => $validated['location'] ?? null, // If location exists
-        'images' => json_encode($imagePaths), // Store image paths as JSON
-    ]);
-
-    return response()->json(['message' => 'Trailer created successfully', 'trailer' => $trailer], 201);
-}
+    
     
 
     // List all trailers
@@ -127,10 +127,10 @@ class TrailerController extends Controller
             'title' => $trailer->title,
             'description' => $trailer->description,
             'type' => $trailer->type,
-            'features' => json_decode($trailer->features, true), // Convert JSON to array
+            'features' => json_decode($trailer->features, true), 
             'size' => $trailer->size,
             'trailer_weight' => $trailer->trailer_weight,
-            'max_load' => $trailer->max_load,
+            'max_payload' => $trailer->max_payload,
             'connector_type' => $trailer->connector_type,
             'trailer_brakes' => $trailer->trailer_brakes,
             'hitch_ball_size' => $trailer->hitch_ball_size,
@@ -145,8 +145,6 @@ class TrailerController extends Controller
             'location' => $trailer->location,
             'approval_status' => $trailer->approval_status,
             'images' => json_decode($trailer->images, true),
-    
-            // Check if owner exists before accessing properties
             'owner' => $trailer->owner ? [
                 'id' => $trailer->owner->id,
                 'name' => $trailer->owner->name,
@@ -171,125 +169,89 @@ class TrailerController extends Controller
     }
     
 
-    public function start(Request $request)
-{
-    // Validate incoming request
-    $request->validate([
-        'title' => 'required|string|max:255',
-        'description' => 'required|string',
-        'type' => 'required|string',
-        'features' => 'nullable|array',
-        'size' => 'required|string',
-        'trailer_weight' => 'required|numeric',
-        'max_load' => 'required|numeric',
-        'connector_type' => 'required|string',
-        'trailer_brakes' => 'required|string',
-        'hitch_ball_size' => 'required|string',
-        'price' => 'required|numeric',
-        'location' => 'required|string',
-        'images' => 'nullable|array',
-        'images.*' => 'url', // Validate each image URL
-    ]);
-
-    // Get the authenticated user
-    $user = auth()->user();
-
-    // Create new trailer
-    $trailer = Trailer::create([
-        'user_id' => $user->id,  // Associate with the logged-in user
-        'title' => $request->title,
-        'description' => $request->description,
-        'type' => $request->type,
-        'features' => json_encode($request->features),
-        'size' => $request->size,
-        'trailer_weight' => $request->trailer_weight,
-        'max_load' => $request->max_load,
-        'connector_type' => $request->connector_type,
-        'trailer_brakes' => $request->trailer_brakes,
-        'hitch_ball_size' => $request->hitch_ball_size,
-        'price' => $request->price,
-        'location' => $request->location,
-        'images' => json_encode($request->images),
-        'approval_status' => 'pending', // Set default approval status
-    ]);
-
-    return response()->json([
-        'message' => 'Trailer added successfully',
-        'trailer' => $trailer
-    ], 201);
-}
-
-
-    // Update a trailer
+   
    // Update method
-public function update(Request $request, $id)
-{
-    $trailer = Trailer::find($id);
+   public function update(Request $request, $id)
+   {
+       $trailer = Trailer::find($id);
+   
+       if (!$trailer) {
+           return response()->json(['message' => 'Trailer not found'], 404);
+       }
+   
+       // Check that the logged-in user is the owner
+       if ($trailer->user_id !== Auth::id()) {
+           return response()->json(['message' => 'Unauthorized'], 403);
+       }
+   
+       $validated = $request->validate([
+           'title' => 'required|string',
+           'description' => 'required|string',
+           'price' => 'required|numeric'
+       ]);
+   
+       $trailer->update($validated);
+   
+       return response()->json(['message' => 'Trailer updated successfully', 'data' => $trailer]);
+   }
+   
 
-    if (!$trailer) {
-        return response()->json(['message' => 'Trailer not found'], 404);
-    }
+   public function destroy($id)
+   {
+       $trailer = Trailer::find($id);
+   
+       if (!$trailer) {
+           return response()->json(['message' => 'Trailer not found'], 404);
+       }
+   
+       // Ensure the user is the owner of the trailer
+       if ($trailer->user_id !== Auth::id()) {
+           return response()->json(['message' => 'Unauthorized'], 403);
+       }
+   
+       $trailer->delete();
+   
+       return response()->json(['message' => 'Trailer deleted successfully']);
+   }
+   
 
-    logger('Auth ID: ' . Auth::id());
-    logger('Trailer User ID: ' . $trailer->user_id);
-
-
-
-    $validated = $request->validate([
-        'title' => 'required|string',
-        'description' => 'required|string',
-        'price' => 'required|numeric'
-    ]);
-
-    $trailer->update($validated);
-
-    return response()->json(['message' => 'Trailer updated successfully', 'data' => $trailer]);
-}
-
-    public function destroy($id)
+    public function approveListing(Request $request, $id)
     {
-        $trailer = Trailer::find($id);
-
-        if (!$trailer) {
-            return response()->json(['message' => 'Trailer not found'], 404);
-        }
-
-
-        if ($trailer->user_id !== Auth::id()) {
+        $trailer = Trailer::findOrFail($id);
+    
+        // Ensure the authenticated user is an administrator
+        if (auth()->user()->role !== 'administrator') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-
-        $trailer->delete();
-
-        return response()->json(['message' => 'Trailer deleted successfully']);
+    
+        // Validate the approval_status and admin_feedback fields
+        $validated = $request->validate([
+            'approval_status' => 'required|in:pending,approved,rejected',
+            'admin_feedback' => 'nullable|string|max:255',
+        ]);
+    
+        $imagePaths = []; // Initialize the image paths array
+    
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('trailers', 'public');
+                $imagePaths[] = $path;
+            }
+    
+            $trailer->images = json_encode($imagePaths); // Update images field
+        }
+    
+        // Update the trailer's approval status and feedback
+        $trailer->approval_status = $validated['approval_status'];
+        $trailer->admin_feedback = $validated['admin_feedback'];
+        $trailer->save();
+    
+        // Return a success response
+        return response()->json([
+            'message' => 'Trailer approval status updated successfully',
+            'data' => $trailer,
+        ]);
     }
-
-public function approveListing(Request $request, $id)
-{
-
-    $trailer = Trailer::findOrFail($id);
-
-    // Ensure the authenticated user is an administrator
-    if (auth()->user()->role !== 'administrator') {
-        return response()->json(['message' => 'Unauthorized'], 403);
-    }
-
-    // Validate the approval_status and admin_feedback fields
-    $validated = $request->validate([
-        'approval_status' => 'required|in:pending,approved,rejected',
-        'admin_feedback' => 'nullable|string|max:255',
-    ]);
-
-    // Update the trailer's approval status and feedback
-    $trailer->approval_status = $validated['approval_status'];
-    $trailer->admin_feedback = $validated['admin_feedback'];
-    $trailer->save();
-
-    // Return a success response
-    return response()->json([
-        'message' => 'Trailer approval status updated successfully',
-        'data' => $trailer,
-    ]);
-}
+    
 
 }
