@@ -14,8 +14,8 @@ return new class extends Migration {
             // Modify an existing column (change 'size' to decimal for precision)
             $table->decimal('size', 5, 2)->change(); 
 
-            // Rename a column (e.g., 'capacity' to 'max_load')
-            $table->renameColumn('capacity', 'max_load');
+            // Rename a column (e.g., 'capacity' to 'max_payload')
+            $table->renameColumn('capacity', 'max_payload');
 
             // Drop a column
             $table->dropColumn('features'); 
@@ -28,7 +28,7 @@ return new class extends Migration {
             // Reverse the changes (for rollback)
             $table->dropColumn('location');
             $table->float('size')->change();
-            $table->renameColumn('max_load', 'capacity');
+            $table->renameColumn('max_payload', 'capacity');
             $table->json('features');
         });
     }
